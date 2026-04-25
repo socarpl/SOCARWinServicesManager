@@ -1,4 +1,5 @@
 # SOCAR WinServicesManager
+<!-- workflow-trigger -->
 
 SOCAR WinServicesManager is a Windows-only toolset for capturing, editing, applying, and automating Windows service startup/state profiles.
 
