@@ -366,13 +366,15 @@ On every push to `master`, GitHub Actions:
 - runs `publish.ps1`
 - zips the `publish` folder
 - uploads the ZIP as a workflow artifact
-- updates the `continuous` tag
-- publishes or updates the `Continuous Build` prerelease with the ZIP attached
+- finds the highest existing `v1.0.N` release tag
+- creates the next patch release tag, for example `v1.0.1`, `v1.0.2`, `v1.0.3`
+- publishes a normal GitHub Release with the ZIP attached
+- removes the old legacy `continuous` prerelease/tag if it exists
 
-Download asset name:
+Download asset name pattern:
 
 ```text
-SOCAR-WinServicesManager-win-x64.zip
+SOCAR-WinServicesManager-v1.0.N-win-x64.zip
 ```
 
 ## Recovery And Repair

@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -44,22 +46,54 @@ jobs:
           path: SOCAR-WinServicesManager-win-x64.zip
           if-no-files-found: error
 
-      - name: Update continuous release tag
+      - name: Determine next release version
+        id: version
         shell: pwsh
         run: |
+          git fetch --tags --force
+          $maxPatch = 0
+          $tags = git tag --list "v1.0.*"
+          foreach ($tag in $tags) {
+            if ($tag -match '^v1\.0\.(\d+)$') {
+              $patch = [int]$Matches[1]
+              if ($patch -gt $maxPatch) {
+                $maxPatch = $patch
+              }
+            }
+          }
+          $nextPatch = $maxPatch + 1
+          $version = "v1.0.$nextPatch"
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "assetName=SOCAR-WinServicesManager-$version-win-x64.zip" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Copy-Item -LiteralPath "SOCAR-WinServicesManager-win-x64.zip" -Destination "SOCAR-WinServicesManager-$version-win-x64.zip" -Force
+
+      - name: Remove legacy continuous prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete continuous --cleanup-tag --yes --repo $env:GITHUB_REPOSITORY 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "No legacy continuous release to delete."
+          }
+
+      - name: Create version tag
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -f continuous
-          git push origin continuous --force
+          git tag $version
+          git push origin $version
 
-      - name: Publish continuous GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: continuous
-          name: Continuous Build
-          body: |
-            Automated package generated from the latest push to `master`.
-
-            Download `SOCAR-WinServicesManager-win-x64.zip` from the assets below.
-          prerelease: true
-          files: SOCAR-WinServicesManager-win-x64.zip
+      - name: Publish versioned GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $assetName = "${{ steps.version.outputs.assetName }}"
+          gh release create $version $assetName `
+            --repo $env:GITHUB_REPOSITORY `
+            --title "SOCAR WinServicesManager $version" `
+            --notes "Automated release generated from commit $env:GITHUB_SHA.`n`nDownload ``$assetName`` from the assets below."
