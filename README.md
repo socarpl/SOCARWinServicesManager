@@ -1,6 +1,6 @@
 # SOCAR WinServicesManager
 <!-- workflow-trigger -->
-
+Work in progress. Developed using OpenAI Codex. 
 SOCAR WinServicesManager is a Windows-only toolset for capturing, editing, applying, and automating Windows service startup/state profiles.
 
 The solution contains four executables:
