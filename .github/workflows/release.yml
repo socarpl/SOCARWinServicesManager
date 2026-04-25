@@ -67,16 +67,6 @@ jobs:
           "assetName=SOCAR-WinServicesManager-$version-win-x64.zip" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           Copy-Item -LiteralPath "SOCAR-WinServicesManager-win-x64.zip" -Destination "SOCAR-WinServicesManager-$version-win-x64.zip" -Force
 
-      - name: Remove legacy continuous prerelease
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release delete continuous --cleanup-tag --yes --repo $env:GITHUB_REPOSITORY 2>$null
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "No legacy continuous release to delete."
-          }
-
       - name: Create version tag
         shell: pwsh
         run: |
