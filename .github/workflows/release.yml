@@ -1,0 +1,65 @@
+name: Build downloadable package
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  build-package:
+    name: Build package
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Publish package
+        shell: pwsh
+        run: .\publish.ps1 -Configuration Release -Runtime win-x64
+
+      - name: Create zip
+        shell: pwsh
+        run: |
+          $zipPath = Join-Path $PWD "SOCAR-WinServicesManager-win-x64.zip"
+          if (Test-Path -LiteralPath $zipPath) {
+            Remove-Item -LiteralPath $zipPath -Force
+          }
+          Compress-Archive -Path ".\publish\*" -DestinationPath $zipPath -Force
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SOCAR-WinServicesManager-win-x64
+          path: SOCAR-WinServicesManager-win-x64.zip
+          if-no-files-found: error
+
+      - name: Update continuous release tag
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f continuous
+          git push origin continuous --force
+
+      - name: Publish continuous GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: continuous
+          name: Continuous Build
+          body: |
+            Automated package generated from the latest push to `master`.
+
+            Download `SOCAR-WinServicesManager-win-x64.zip` from the assets below.
+          prerelease: true
+          files: SOCAR-WinServicesManager-win-x64.zip

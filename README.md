@@ -350,6 +350,30 @@ Use a self-contained package if the target machine may not have the .NET runtime
 .\publish.ps1 -SelfContained
 ```
 
+## GitHub Release Automation
+
+The repository includes a GitHub Actions workflow:
+
+```text
+.github/workflows/release.yml
+```
+
+On every push to `master`, GitHub Actions:
+
+- checks out the repository
+- installs .NET 8
+- runs `publish.ps1`
+- zips the `publish` folder
+- uploads the ZIP as a workflow artifact
+- updates the `continuous` tag
+- publishes or updates the `Continuous Build` prerelease with the ZIP attached
+
+Download asset name:
+
+```text
+SOCAR-WinServicesManager-win-x64.zip
+```
+
 ## Recovery And Repair
 
 ### Missing Config
