@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>Socar.WinServicesManager</AssemblyName>
+    <RootNamespace>Socar.WinServicesManager</RootNamespace>
+    <Authors>SOCAR Software</Authors>
+    <Company>SOCAR Software</Company>
+    <Product>SOCAR WinServicesManager</Product>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.15" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="service-manager.config.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="MainForm.cs" />
+    <Compile Remove="ProfileEditorForm.cs" />
+    <Compile Remove="ProfilesForm.cs" />
+    <Compile Remove="RunResultForm.cs" />
+    <Compile Remove="ServiceGraphForm.cs" />
+    <Compile Remove="ServiceGraphView.cs" />
+    <Compile Remove="SettingsForm.cs" />
+    <Compile Remove="WindowsServiceManager.Cli\**\*.cs" />
+    <Compile Remove="WindowsServiceManager.Service\**\*.cs" />
+    <Compile Remove="WindowsServiceManager.Tray\**\*.cs" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,9 @@
+bin/
+obj/
+.dotnet/
+.nuget/
+publish/
+publish-*/
+.vs/
+*.user
+*.suo

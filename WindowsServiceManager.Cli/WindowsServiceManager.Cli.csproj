@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>Socar.WinServicesManager.Cli</AssemblyName>
+    <RootNamespace>Socar.WinServicesManager.Cli</RootNamespace>
+    <Authors>SOCAR Software</Authors>
+    <Company>SOCAR Software</Company>
+    <Product>SOCAR WinServicesManager CLI</Product>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Spectre.Console" Version="0.49.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="service-manager.config.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\NativeServiceApi.cs" Link="Shared\NativeServiceApi.cs" />
+    <Compile Include="..\ProfileModels.cs" Link="Shared\ProfileModels.cs" />
+    <Compile Include="..\ProfileRunner.cs" Link="Shared\ProfileRunner.cs" />
+    <Compile Include="..\ProfileXmlSerializer.cs" Link="Shared\ProfileXmlSerializer.cs" />
+    <Compile Include="..\ServiceModels.cs" Link="Shared\ServiceModels.cs" />
+  </ItemGroup>
+</Project>
