@@ -10,6 +10,24 @@ The solution contains four executables:
 - `Socar.WinServicesManager.Tray.exe`: normal-user tray app that lists profiles and asks the service process to run them.
 - `Socar.WinServicesManager.Service.exe`: Windows Service that runs selected profiles with service-control privileges.
 
+## Branding And Executable Icons
+
+The package is branded as `SOCAR WinServicesManager` and is owned by `SOCAR Software`.
+
+Executable icon assets are stored in:
+
+```text
+Assets\
+```
+
+Current icon assignments:
+
+- `Assets\gear_14964.ico`: main WPF app executable icon and tray app executable/tray notification icon
+- `Assets\cli_gear_108987.ico`: CLI executable icon only
+- `Assets\service_gear_265392.ico`: Windows Service executable icon only
+
+The tray app loads its notification-area icon from the tray executable's associated icon, so the tray icon matches `Socar.WinServicesManager.Tray.exe`.
+
 ## Core Concepts
 
 ### Profiles
@@ -83,7 +101,7 @@ Both values may be blank:
 }
 ```
 
-Blank values mean “use local defaults”.
+Blank values mean "use local defaults".
 
 ### Path Resolution
 
@@ -198,6 +216,128 @@ Main features:
 - view full service dependency graph
 - install/uninstall the background Windows Service
 
+The top application menu uses standard WPF menus:
+
+- `Profile`
+- `Tools`
+- `Windows Service`
+- `Help`
+
+Menu dropdown placement is forced to left-aligned behavior at startup. This avoids Windows/WPF right-handed menu alignment causing dropdowns to open leftward from the top menu item.
+
+### Profiles Window
+
+The Profiles window is the first screen of the main app. It lists stored profiles in a grid with:
+
+- profile name
+- number of service actions
+- last updated timestamp
+
+Supported actions:
+
+- create a profile
+- edit the selected profile
+- delete the selected profile
+- run the selected profile
+- snapshot the current system into a new profile
+- export the selected profile to XML
+- import a profile XML file
+- open settings
+- open service manager
+- open service graph
+- install or uninstall the background Windows Service
+
+The profiles grid supports a row context menu. Right-clicking a profile row selects that row and shows:
+
+- `Run`
+- separator
+- `Edit`
+- `Delete`
+
+Right-clicking empty grid space does not show profile actions.
+
+### Create/Edit Profile Window
+
+The Create/Edit Profile window shows the full service list used to build a profile.
+
+Top controls:
+
+- profile name
+- service search box
+- `Hide all Microsoft services`, selected by default
+
+The services grid contains:
+
+- `Use`
+- display name
+- service name
+- current startup type
+- current status
+- new startup type
+- new status
+
+Grid behavior:
+
+- column sorting is enabled through WPF `DataGrid` column headers
+- changing `New startup` or `New status` automatically checks `Use`
+- only rows with `Use` checked are saved into the profile
+- unchanged target values are ignored when saving actions
+
+Bulk controls sit between the grid and the details tabs:
+
+- `Bulk Set: New Startup`
+- `Bulk Set: New Status`
+
+Bulk operation behavior:
+
+- select one or more rows by checking `Use`
+- choose a target value from the bulk dropdown
+- click `Set`
+- only currently visible rows with `Use` checked are changed
+- hidden rows filtered out by search or `Hide all Microsoft services` are not changed by the bulk action
+
+The bottom tabs show details for the selected service:
+
+- `Details`: service metadata formatted as text
+- `Dependency tree`: service dependencies and dependent services
+
+The services grid supports a row context menu. Right-clicking a service row selects that row and shows:
+
+- `Open file location`
+- `Search <exe name> in Google`
+
+`Open file location` parses the service binary path, expands environment variables, and opens Explorer at the executable location. If the file exists, Explorer selects the executable. If only the directory exists, Explorer opens the directory.
+
+`Search <exe name> in Google` opens the default browser with a Google search using only the executable filename, not the full path.
+
+Service binary path parsing handles common Windows service formats:
+
+- quoted executable paths with arguments
+- unquoted executable paths ending in `.exe`
+- paths containing environment variables such as `%SystemRoot%`
+
+### Service Graph Window
+
+The graph window visualizes all services and their dependency relationships as a force-style graph.
+
+Graph behavior:
+
+- each service is a draggable dot
+- service names are displayed under dots
+- dependency lines include arrowheads pointing toward the required parent service
+- dots are spaced to reduce overlap
+- clicking a dot updates the service information panel
+- running services are green with a black border
+- stopped services are red with a white border
+
+The graph window has a service information panel on the left showing:
+
+- service name
+- short service name
+- description
+
+The Profiles window has a `Graph` menu entry that opens the graph as a separate window alongside the main Profiles window.
+
 ### Windows Service Installer Dialog
 
 Button:
@@ -231,6 +371,19 @@ Install assumptions:
 The tray app is a normal user process. It does not manipulate services directly.
 
 The Windows Service performs privileged work.
+
+Tray app behavior:
+
+- lives in the Windows notification area
+- left-click opens a context menu
+- menu lists profiles read from the shared SQLite database
+- clicking a profile sends a run request to the Windows Service
+- `Open main app` launches `Socar.WinServicesManager.exe` using `mainAppPath` from config
+- `Refresh menu` reloads the profile list from SQLite
+- `About` shows branding and ownership text
+- `Exit` closes the tray app
+
+The tray app intentionally runs as a normal user process. This avoids a UAC prompt at every user logon. Privileged work is delegated to the Windows Service.
 
 Communication:
 

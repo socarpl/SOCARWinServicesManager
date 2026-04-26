@@ -1,7 +1,11 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Input;
+using System.Windows.Media;
 
 namespace Socar.WinServicesManager;
 
@@ -87,6 +91,7 @@ public sealed class ProfileEditorWindow : Window
         _grid.Columns.Add(new DataGridComboBoxColumn { Header = "New startup", SelectedItemBinding = new Binding(nameof(ServiceActionEditRow.DesiredStartType)) { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged }, ItemsSource = WpfUi.StartupOptions, Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
         _grid.Columns.Add(new DataGridComboBoxColumn { Header = "New status", SelectedItemBinding = new Binding(nameof(ServiceActionEditRow.DesiredStatus)) { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged }, ItemsSource = WpfUi.StatusOptions, Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
         _grid.SelectionChanged += (_, _) => UpdateSelectedServiceDetails();
+        _grid.PreviewMouseRightButtonDown += SelectServiceRowForContextMenu;
         Grid.SetRow(_grid, 0);
         split.Children.Add(_grid);
 
@@ -188,6 +193,118 @@ public sealed class ProfileEditorWindow : Window
         }
 
         CollectionViewSource.GetDefaultView(_grid.ItemsSource)?.Refresh();
+    }
+
+    private ContextMenu BuildServiceRowContextMenu(ServiceActionEditRow row)
+    {
+        var menu = new ContextMenu();
+        var hasExecutable = TryGetServiceExecutable(row, out var executablePath, out var executableName);
+
+        var openFileLocationItem = new MenuItem { Header = "Open file location", IsEnabled = hasExecutable };
+        openFileLocationItem.Click += (_, _) => OpenFileLocation(executablePath);
+        menu.Items.Add(openFileLocationItem);
+
+        var searchText = hasExecutable ? $"Search {executableName} in Google" : "Search service executable in Google";
+        var searchItem = new MenuItem { Header = searchText, IsEnabled = hasExecutable };
+        searchItem.Click += (_, _) => SearchExecutableInGoogle(executableName);
+        menu.Items.Add(searchItem);
+
+        return menu;
+    }
+
+    private void SelectServiceRowForContextMenu(object sender, MouseButtonEventArgs e)
+    {
+        var row = FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject);
+        if (row?.Item is not ServiceActionEditRow serviceRow)
+        {
+            _grid.ContextMenu = null;
+            return;
+        }
+
+        _grid.SelectedItem = serviceRow;
+        row.Focus();
+        _grid.ContextMenu = BuildServiceRowContextMenu(serviceRow);
+    }
+
+    private void OpenFileLocation(string executablePath)
+    {
+        if (File.Exists(executablePath))
+        {
+            Process.Start("explorer.exe", $"/select,\"{executablePath}\"");
+            return;
+        }
+
+        var directory = Path.GetDirectoryName(executablePath);
+        if (!string.IsNullOrWhiteSpace(directory) && Directory.Exists(directory))
+        {
+            Process.Start("explorer.exe", $"\"{directory}\"");
+            return;
+        }
+
+        MessageBox.Show(this, $"File location was not found:{Environment.NewLine}{executablePath}", "Open File Location", MessageBoxButton.OK, MessageBoxImage.Warning);
+    }
+
+    private static void SearchExecutableInGoogle(string executableName)
+    {
+        var url = $"https://www.google.com/search?q={Uri.EscapeDataString(executableName)}";
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = url,
+            UseShellExecute = true
+        });
+    }
+
+    private static bool TryGetServiceExecutable(ServiceActionEditRow row, out string executablePath, out string executableName)
+    {
+        executablePath = string.Empty;
+        executableName = string.Empty;
+
+        var binaryPath = Environment.ExpandEnvironmentVariables(row.BinaryPath ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(binaryPath))
+        {
+            return false;
+        }
+
+        if (binaryPath.StartsWith('"'))
+        {
+            var closingQuote = binaryPath.IndexOf('"', 1);
+            if (closingQuote > 1)
+            {
+                executablePath = binaryPath[1..closingQuote];
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(executablePath))
+        {
+            var exeIndex = binaryPath.IndexOf(".exe", StringComparison.OrdinalIgnoreCase);
+            if (exeIndex >= 0)
+            {
+                executablePath = binaryPath[..(exeIndex + 4)].Trim('"', ' ');
+            }
+            else
+            {
+                executablePath = binaryPath.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim('"') ?? string.Empty;
+            }
+        }
+
+        executableName = Path.GetFileName(executablePath);
+        return !string.IsNullOrWhiteSpace(executablePath) && !string.IsNullOrWhiteSpace(executableName);
+    }
+
+    private static T? FindVisualParent<T>(DependencyObject? child)
+        where T : DependencyObject
+    {
+        while (child is not null)
+        {
+            if (child is T parent)
+            {
+                return parent;
+            }
+
+            child = VisualTreeHelper.GetParent(child);
+        }
+
+        return null;
     }
 
     private void LoadServices()
