@@ -16,6 +16,8 @@ public sealed class ProfileEditorWindow : Window
     private readonly TextBox _searchTextBox = new();
     private readonly CheckBox _hideMicrosoftCheckBox = new() { Content = "Hide all Microsoft services", IsChecked = true };
     private readonly DataGrid _grid = new();
+    private readonly ComboBox _bulkStartTypeComboBox = new();
+    private readonly ComboBox _bulkStatusComboBox = new();
     private readonly TextBox _detailsTextBox = new();
     private readonly TreeView _dependencyTree = new();
 
@@ -69,6 +71,7 @@ public sealed class ProfileEditorWindow : Window
         var split = new Grid();
         split.RowDefinitions.Add(new RowDefinition { Height = new GridLength(3, GridUnitType.Star) });
         split.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        split.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         split.RowDefinitions.Add(new RowDefinition { Height = new GridLength(2, GridUnitType.Star) });
 
         _grid.AutoGenerateColumns = false;
@@ -76,7 +79,7 @@ public sealed class ProfileEditorWindow : Window
         _grid.CanUserDeleteRows = false;
         _grid.SelectionMode = DataGridSelectionMode.Single;
         _grid.ItemsSource = _visibleRows;
-        _grid.Columns.Add(new DataGridCheckBoxColumn { Header = "Use", Binding = new Binding(nameof(ServiceActionEditRow.Include)), Width = 54 });
+        _grid.Columns.Add(new DataGridCheckBoxColumn { Header = "Use", Binding = new Binding(nameof(ServiceActionEditRow.Include)) { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged }, Width = 54 });
         _grid.Columns.Add(new DataGridTextColumn { Header = "Display name", Binding = new Binding(nameof(ServiceActionEditRow.DisplayName)), IsReadOnly = true, Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
         _grid.Columns.Add(new DataGridTextColumn { Header = "Service name", Binding = new Binding(nameof(ServiceActionEditRow.ServiceName)), IsReadOnly = true, Width = new DataGridLength(1.4, DataGridLengthUnitType.Star) });
         _grid.Columns.Add(new DataGridTextColumn { Header = "Current startup", Binding = new Binding(nameof(ServiceActionEditRow.CurrentStartType)), IsReadOnly = true, Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
@@ -87,8 +90,12 @@ public sealed class ProfileEditorWindow : Window
         Grid.SetRow(_grid, 0);
         split.Children.Add(_grid);
 
+        var bulkPanel = BuildBulkPanel();
+        Grid.SetRow(bulkPanel, 1);
+        split.Children.Add(bulkPanel);
+
         var splitter = new GridSplitter { Height = 6, HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Center };
-        Grid.SetRow(splitter, 1);
+        Grid.SetRow(splitter, 2);
         split.Children.Add(splitter);
 
         var tabs = new TabControl();
@@ -98,7 +105,7 @@ public sealed class ProfileEditorWindow : Window
         _detailsTextBox.FontFamily = new System.Windows.Media.FontFamily("Consolas");
         tabs.Items.Add(new TabItem { Header = "Details", Content = _detailsTextBox });
         tabs.Items.Add(new TabItem { Header = "Dependency tree", Content = _dependencyTree });
-        Grid.SetRow(tabs, 2);
+        Grid.SetRow(tabs, 3);
         split.Children.Add(tabs);
 
         root.Children.Add(split);
@@ -106,6 +113,81 @@ public sealed class ProfileEditorWindow : Window
         _hideMicrosoftCheckBox.Checked += (_, _) => ApplyFilter();
         _hideMicrosoftCheckBox.Unchecked += (_, _) => ApplyFilter();
         return root;
+    }
+
+    private UIElement BuildBulkPanel()
+    {
+        var panel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 8, 0, 8)
+        };
+
+        _bulkStartTypeComboBox.ItemsSource = WpfUi.StartupOptions;
+        _bulkStartTypeComboBox.SelectedItem = WpfUi.Unchanged;
+        _bulkStartTypeComboBox.MinWidth = 180;
+        var setStartupButton = new Button { Content = "Set", MinWidth = 60, Margin = new Thickness(8, 0, 0, 0) };
+        setStartupButton.Click += (_, _) => ApplyBulkStartType();
+        panel.Children.Add(BuildBulkGroup("Bulk Set: New Startup", _bulkStartTypeComboBox, setStartupButton));
+
+        _bulkStatusComboBox.ItemsSource = WpfUi.StatusOptions;
+        _bulkStatusComboBox.SelectedItem = WpfUi.Unchanged;
+        _bulkStatusComboBox.MinWidth = 180;
+        var setStatusButton = new Button { Content = "Set", MinWidth = 60, Margin = new Thickness(8, 0, 0, 0) };
+        setStatusButton.Click += (_, _) => ApplyBulkStatus();
+        panel.Children.Add(BuildBulkGroup("Bulk Set: New Status", _bulkStatusComboBox, setStatusButton));
+
+        return panel;
+    }
+
+    private static UIElement BuildBulkGroup(string header, ComboBox comboBox, Button setButton)
+    {
+        var group = new GroupBox
+        {
+            Header = header,
+            Margin = new Thickness(8, 0, 0, 0),
+            Padding = new Thickness(8, 6, 8, 8)
+        };
+
+        var content = new StackPanel { Orientation = Orientation.Horizontal };
+        content.Children.Add(comboBox);
+        content.Children.Add(setButton);
+        group.Content = content;
+        return group;
+    }
+
+    private void ApplyBulkStartType()
+    {
+        if (_bulkStartTypeComboBox.SelectedItem is not string selected)
+        {
+            return;
+        }
+
+        ApplyBulk(row => row.DesiredStartType = selected);
+    }
+
+    private void ApplyBulkStatus()
+    {
+        if (_bulkStatusComboBox.SelectedItem is not string selected)
+        {
+            return;
+        }
+
+        ApplyBulk(row => row.DesiredStatus = selected);
+    }
+
+    private void ApplyBulk(Action<ServiceActionEditRow> update)
+    {
+        _grid.CommitEdit(DataGridEditingUnit.Cell, true);
+        _grid.CommitEdit(DataGridEditingUnit.Row, true);
+
+        foreach (var row in _visibleRows.Where(row => row.Include))
+        {
+            update(row);
+        }
+
+        CollectionViewSource.GetDefaultView(_grid.ItemsSource)?.Refresh();
     }
 
     private void LoadServices()
