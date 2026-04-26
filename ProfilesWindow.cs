@@ -17,6 +17,7 @@ public sealed class ProfilesWindow : Window
     private readonly DataGrid _grid = new();
     private readonly TextBlock _databaseText = new();
     private readonly MenuItem _editMenuItem = new() { Header = "Edit selected" };
+    private readonly MenuItem _duplicateMenuItem = new() { Header = "Duplicate selected" };
     private readonly MenuItem _deleteMenuItem = new() { Header = "Delete selected" };
     private readonly MenuItem _runMenuItem = new() { Header = "Run selected" };
     private readonly MenuItem _exportMenuItem = new() { Header = "Export selected to XML" };
@@ -78,6 +79,7 @@ public sealed class ProfilesWindow : Window
         createItem.Click += (_, _) => CreateProfile();
         snapshotItem.Click += async (_, _) => await CreateSnapshotProfileAsync();
         _editMenuItem.Click += (_, _) => EditProfile();
+        _duplicateMenuItem.Click += (_, _) => DuplicateProfile();
         _deleteMenuItem.Click += (_, _) => DeleteProfile();
         _runMenuItem.Click += (_, _) => RunProfile();
         _exportMenuItem.Click += (_, _) => ExportProfile();
@@ -86,6 +88,7 @@ public sealed class ProfilesWindow : Window
         profileMenu.Items.Add(snapshotItem);
         profileMenu.Items.Add(new Separator());
         profileMenu.Items.Add(_editMenuItem);
+        profileMenu.Items.Add(_duplicateMenuItem);
         profileMenu.Items.Add(_deleteMenuItem);
         profileMenu.Items.Add(_runMenuItem);
         profileMenu.Items.Add(new Separator());
@@ -120,7 +123,7 @@ public sealed class ProfilesWindow : Window
         return menu;
     }
 
-    private static ContextMenu BuildProfileRowContextMenu(Action run, Action edit, Action delete)
+    private static ContextMenu BuildProfileRowContextMenu(Action run, Action duplicate, Action edit, Action delete)
     {
         var menu = new ContextMenu();
 
@@ -129,6 +132,10 @@ public sealed class ProfilesWindow : Window
         menu.Items.Add(runItem);
 
         menu.Items.Add(new Separator());
+
+        var duplicateItem = new MenuItem { Header = "Duplicate" };
+        duplicateItem.Click += (_, _) => duplicate();
+        menu.Items.Add(duplicateItem);
 
         var editItem = new MenuItem { Header = "Edit" };
         editItem.Click += (_, _) => edit();
@@ -152,7 +159,7 @@ public sealed class ProfilesWindow : Window
 
         _grid.SelectedItem = profile;
         row.Focus();
-        _grid.ContextMenu = BuildProfileRowContextMenu(RunProfile, EditProfile, DeleteProfile);
+        _grid.ContextMenu = BuildProfileRowContextMenu(RunProfile, DuplicateProfile, EditProfile, DeleteProfile);
     }
 
     private static T? FindVisualParent<T>(DependencyObject? child)
@@ -281,6 +288,43 @@ public sealed class ProfilesWindow : Window
         LoadProfiles();
     }
 
+    private void DuplicateProfile()
+    {
+        var selected = SelectedProfile();
+        if (selected is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var source = _repository.GetProfile(selected.Id);
+            var copy = new ServiceProfile
+            {
+                Name = UniqueProfileName($"{source.Name}-Copy"),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                Actions = source.Actions
+                    .Select(action => new ProfileServiceAction
+                    {
+                        ServiceName = action.ServiceName,
+                        DisplayName = action.DisplayName,
+                        DesiredStartType = action.DesiredStartType,
+                        DesiredStatus = action.DesiredStatus
+                    })
+                    .ToList()
+            };
+
+            _repository.SaveProfile(copy);
+            LoadProfiles();
+            SelectProfile(copy.Id);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "Duplicate Profile", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     private void RunProfile()
     {
         var selected = SelectedProfile();
@@ -405,9 +449,19 @@ public sealed class ProfilesWindow : Window
     {
         var hasSelection = SelectedProfile() is not null;
         _editMenuItem.IsEnabled = hasSelection;
+        _duplicateMenuItem.IsEnabled = hasSelection;
         _deleteMenuItem.IsEnabled = hasSelection;
         _runMenuItem.IsEnabled = hasSelection;
         _exportMenuItem.IsEnabled = hasSelection;
+    }
+
+    private void SelectProfile(long profileId)
+    {
+        _grid.SelectedItem = _profiles.FirstOrDefault(profile => profile.Id == profileId);
+        if (_grid.SelectedItem is not null)
+        {
+            _grid.ScrollIntoView(_grid.SelectedItem);
+        }
     }
 
     private string UniqueProfileName(string requestedName)
