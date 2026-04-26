@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Reflection;
 using System.Security.Principal;
 using System.Windows;
 
@@ -15,10 +16,37 @@ internal static class Program
         }
 
         SharedRuntimeConfig.EnsureMainAppConfig();
+        DisableRightAlignedMenuDropDowns();
         var repository = new ProfileRepository();
         repository.Initialize();
         var app = new Application();
         app.Run(new ProfilesWindow(repository, new NativeServiceApi()));
+    }
+
+    private static void DisableRightAlignedMenuDropDowns()
+    {
+        var menuDropAlignmentField = typeof(SystemParameters).GetField("_menuDropAlignment", BindingFlags.NonPublic | BindingFlags.Static);
+        if (menuDropAlignmentField is null)
+        {
+            return;
+        }
+
+        SetLeftAlignedMenuDropDowns(menuDropAlignmentField);
+        SystemParameters.StaticPropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(SystemParameters.MenuDropAlignment))
+            {
+                SetLeftAlignedMenuDropDowns(menuDropAlignmentField);
+            }
+        };
+    }
+
+    private static void SetLeftAlignedMenuDropDowns(FieldInfo menuDropAlignmentField)
+    {
+        if (SystemParameters.MenuDropAlignment)
+        {
+            menuDropAlignmentField.SetValue(null, false);
+        }
     }
 
     private static bool EnsureAdministrator()

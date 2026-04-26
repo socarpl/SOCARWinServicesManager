@@ -12,7 +12,7 @@ public sealed class TrayApplicationContext : ApplicationContext
     {
         _notifyIcon = new NotifyIcon
         {
-            Icon = SystemIcons.Application,
+            Icon = LoadTrayIcon(),
             Text = "SOCAR WinServicesManager",
             Visible = true
         };
@@ -25,6 +25,16 @@ public sealed class TrayApplicationContext : ApplicationContext
                 _notifyIcon.ContextMenuStrip.Show(Cursor.Position);
             }
         };
+    }
+
+    private static Icon LoadTrayIcon()
+    {
+        if (!string.IsNullOrWhiteSpace(Environment.ProcessPath))
+        {
+            return Icon.ExtractAssociatedIcon(Environment.ProcessPath) ?? SystemIcons.Application;
+        }
+
+        return SystemIcons.Application;
     }
 
     protected override void Dispose(bool disposing)

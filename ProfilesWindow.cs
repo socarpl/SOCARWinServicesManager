@@ -3,6 +3,8 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Input;
+using System.Windows.Media;
 using Microsoft.Win32;
 
 namespace Socar.WinServicesManager;
@@ -59,6 +61,7 @@ public sealed class ProfilesWindow : Window
         _grid.Columns.Add(new DataGridTextColumn { Header = "Updated", Binding = new Binding(nameof(ProfileListRow.UpdatedAt)), Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
         _grid.SelectionChanged += (_, _) => UpdateButtons();
         _grid.MouseDoubleClick += (_, _) => EditProfile();
+        _grid.PreviewMouseRightButtonDown += SelectProfileRowForContextMenu;
         root.Children.Add(_grid);
 
         return root;
@@ -115,6 +118,57 @@ public sealed class ProfilesWindow : Window
         menu.Items.Add(serviceMenu);
         menu.Items.Add(helpMenu);
         return menu;
+    }
+
+    private static ContextMenu BuildProfileRowContextMenu(Action run, Action edit, Action delete)
+    {
+        var menu = new ContextMenu();
+
+        var runItem = new MenuItem { Header = "Run" };
+        runItem.Click += (_, _) => run();
+        menu.Items.Add(runItem);
+
+        menu.Items.Add(new Separator());
+
+        var editItem = new MenuItem { Header = "Edit" };
+        editItem.Click += (_, _) => edit();
+        menu.Items.Add(editItem);
+
+        var deleteItem = new MenuItem { Header = "Delete" };
+        deleteItem.Click += (_, _) => delete();
+        menu.Items.Add(deleteItem);
+
+        return menu;
+    }
+
+    private void SelectProfileRowForContextMenu(object sender, MouseButtonEventArgs e)
+    {
+        var row = FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject);
+        if (row?.Item is not ProfileListRow profile)
+        {
+            _grid.ContextMenu = null;
+            return;
+        }
+
+        _grid.SelectedItem = profile;
+        row.Focus();
+        _grid.ContextMenu = BuildProfileRowContextMenu(RunProfile, EditProfile, DeleteProfile);
+    }
+
+    private static T? FindVisualParent<T>(DependencyObject? child)
+        where T : DependencyObject
+    {
+        while (child is not null)
+        {
+            if (child is T parent)
+            {
+                return parent;
+            }
+
+            child = VisualTreeHelper.GetParent(child);
+        }
+
+        return null;
     }
 
     private void LoadProfiles()

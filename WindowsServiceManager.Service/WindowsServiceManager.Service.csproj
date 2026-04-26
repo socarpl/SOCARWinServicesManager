@@ -8,6 +8,7 @@
     <Authors>SOCAR Software</Authors>
     <Company>SOCAR Software</Company>
     <Product>SOCAR WinServicesManager Service</Product>
+    <ApplicationIcon>..\Assets\service_gear_265392.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.15" />

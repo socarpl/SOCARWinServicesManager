@@ -9,6 +9,7 @@
     <Authors>SOCAR Software</Authors>
     <Company>SOCAR Software</Company>
     <Product>SOCAR WinServicesManager CLI</Product>
+    <ApplicationIcon>..\Assets\cli_gear_108987.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Spectre.Console" Version="0.49.1" />
